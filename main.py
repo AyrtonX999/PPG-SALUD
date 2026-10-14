@@ -72,7 +72,6 @@ async def receive_webhook(request: Request):
             message_obj = value['messages'][0]
             number = message_obj.get('from')
 
-            # Soporte para nombres de usuario (@) donde 'from' puede venir mapeado en contacts
             if not number and 'contacts' in value and len(value['contacts']) > 0:
                 number = value['contacts'][0].get('wa_id')
 
@@ -92,12 +91,10 @@ async def receive_webhook(request: Request):
                 last_processed_timestamps[number] = (text_received, current_time)
                 print(f"Mensaje recibido de {number}: {text_received}")
 
-                # Reiniciar el historial cuando comienza otra sesión después de una hora de inactividad
                 previous_time = last_message_times.get(number)
                 if previous_time is not None and current_time - previous_time > INACTIVITY_TIMEOUT:
                     conversation_history.pop(number, None)
 
-                # Guardar el mensaje del cliente
                 conversation_history.setdefault(number, []).append(
                     f"Cliente: {text_received}"
                 )
@@ -105,7 +102,6 @@ async def receive_webhook(request: Request):
                 ai_response = ask_gemini_comercial(number, text_received)
 
                 if ai_response:
-                    # Guardar la respuesta sin la etiqueta interna
                     history_response = ai_response.replace("[DERIVAR_VENTAS]", "").strip()
                     conversation_history[number].append(
                         f"PPG Salud: {history_response}"
@@ -123,15 +119,18 @@ async def receive_webhook(request: Request):
 
                         if should_send_email:
                             last_lead_notifications[number] = current_time
+                            
+                            # Generación del historial completo
+                            historial_texto = "\n\n".join(conversation_history.get(number, []))
+                            
                             payload_lead = {
-                                "origen": "PPG Salud",  # <--- Identificador para Power Automate
+                                "origen": "PPG Salud",
                                 "telefono": number,
                                 "mensaje": text_received,
                                 "respuesta_bot": clean_response,
-                                "conversacion": "\n\n".join(
-                                    conversation_history.get(number, [])
-                                )
+                                "conversacion": historial_texto
                             }
+                            
                             try:
                                 res_pa = requests.post(POWER_AUTOMATE_URL, json=payload_lead)
                                 print("Alerta enviada a Power Automate. Estado:", res_pa.status_code)
