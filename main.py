@@ -124,6 +124,7 @@ async def receive_webhook(request: Request):
                         if should_send_email:
                             last_lead_notifications[number] = current_time
                             payload_lead = {
+                                "origen": "PPG Salud",  # <--- Identificador para Power Automate
                                 "telefono": number,
                                 "mensaje": text_received,
                                 "respuesta_bot": clean_response,
