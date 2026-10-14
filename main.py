@@ -11,7 +11,7 @@ ACCESS_TOKEN = "EAAP4ZAc70DrQBSbsPK5QpbbBtVAhILGBEU0qC4JFrxB04xqtPBizQomzM3SFbsE
 PHONE_NUMBER_ID = "1429712656888524"
 VERIFY_TOKEN = "PPG_SECRET_TOKEN_2026"
 
-# URL de Power Automate (puedes usar la misma o un flujo independiente)
+# URL de Power Automate
 POWER_AUTOMATE_URL = "https://fb058902f544ecd1b22017ca5493c8.e6.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/23/workflows/78404d5c51db480ca90b73a09d065ffe/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=KyzmlX8s2l8BwZaGuWTiq-B_J2tXWFRsdRXJeY1i9K0"
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -39,11 +39,24 @@ SYSTEM_INSTRUCTION_TEXT = (
     "5. Mantén las respuestas directas, concisas y sin textos demasiado largos."
 )
 
+@app.get("/")
+async def root(request: Request):
+    params = request.query_params
+    verify_token = params.get("hub.verify_token") or params.get("hub_verify_token")
+    challenge = params.get("hub.challenge") or params.get("hub_challenge")
+    
+    if verify_token == VERIFY_TOKEN and challenge:
+        return Response(content=challenge, media_type="text/plain")
+    return {"status": "Bot PPG Salud activo"}
+
 @app.get("/webhook")
 async def verify_webhook(request: Request):
     params = request.query_params
-    if params.get("hub.verify_token") == VERIFY_TOKEN:
-        return Response(content=params.get("hub.challenge"), media_type="text/plain")
+    verify_token = params.get("hub.verify_token") or params.get("hub_verify_token")
+    challenge = params.get("hub.challenge") or params.get("hub_challenge")
+    
+    if verify_token == VERIFY_TOKEN and challenge:
+        return Response(content=challenge, media_type="text/plain")
     return Response(content="Token inválido", status_code=403)
 
 @app.post("/webhook")
@@ -152,5 +165,7 @@ def send_whatsapp_message(to_number: str, message_text: str):
         "type": "text",
         "text": {"body": message_text}
     }
+    res = requests.post(url, json=payload, headers=headers)
+    print(f"BOT RESPONDIÓ a {to_number}: {message_text} | Estado Meta: {res.status_code}")
     res = requests.post(url, json=payload, headers=headers)
     print(f"BOT RESPONDIÓ a {to_number}: {message_text} | Estado Meta: {res.status_code}")
